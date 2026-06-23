@@ -2,6 +2,69 @@ import subprocess
 import winreg
 import psutil
 from config.constants import PERFORMANCE_MODES
+import hashlib
+
+class HWIDManager:
+    """Generate and manage Hardware ID for license binding"""
+    
+    @staticmethod
+    def get_hwid():
+        """
+        Generate HWID from hardware components.
+        This is unique per PC and used to bind licenses.
+        """
+        try:
+            components = []
+            
+            # Get CPU ID
+            try:
+                result = subprocess.check_output(
+                    "wmic cpu get ProcessorId",
+                    shell=True,
+                    stderr=subprocess.DEVNULL,
+                    text=True
+                )
+                cpu_id = result.split('\n')[1].strip()
+                components.append(cpu_id)
+            except:
+                components.append("CPU_NOT_FOUND")
+            
+            # Get Motherboard Serial
+            try:
+                result = subprocess.check_output(
+                    "wmic baseboard get serialnumber",
+                    shell=True,
+                    stderr=subprocess.DEVNULL,
+                    text=True
+                )
+                mb_serial = result.split('\n')[1].strip()
+                components.append(mb_serial)
+            except:
+                components.append("MB_NOT_FOUND")
+            
+            # Get Disk Serial
+            try:
+                result = subprocess.check_output(
+                    "wmic logicaldisk where name='C:' get volumeserialnumber",
+                    shell=True,
+                    stderr=subprocess.DEVNULL,
+                    text=True
+                )
+                disk_serial = result.split('\n')[1].strip()
+                components.append(disk_serial)
+            except:
+                components.append("DISK_NOT_FOUND")
+            
+            # Combine and hash
+            combined = "_".join(components)
+            hwid = hashlib.sha256(combined.encode()).hexdigest()[:32].upper()
+            
+            return hwid
+        
+        except Exception as e:
+            # Fallback HWID
+            return "INVALID_HWID"
+
 
 class SystemOptimizer:
     def __init__(self):
@@ -23,7 +86,6 @@ class SystemOptimizer:
     
     def _apply_boost_mode(self, settings):
         """Apply BOOST mode for maximum FPS"""
-        # Disable unnecessary services
         services_to_disable = [
             "DiagTrack",
             "dmwappushservice",
@@ -41,22 +103,17 @@ class SystemOptimizer:
             except:
                 pass
         
-        # Disable animations
         self._disable_animations()
-        
-        # Set power plan to High Performance
         self._set_power_plan("8c5e7fda-e8bf-45a6-a6cc-4b3c619a3a0f")
     
     def _apply_standard_mode(self, settings):
         """Apply standard performance mode"""
         cpu_power = settings.get("cpu_power", 50)
-        gpu_power = settings.get("gpu_power", 50)
         
-        # Adjust power plan
         if cpu_power > 80:
-            plan = "8c5e7fda-e8bf-45a6-a6cc-4b3c619a3a0f"  # High Performance
+            plan = "8c5e7fda-e8bf-45a6-a6cc-4b3c619a3a0f"
         else:
-            plan = "381b4222-f694-41f0-9685-ff5bb260df2e"  # Balanced
+            plan = "381b4222-f694-41f0-9685-ff5bb260df2e"
         
         self._set_power_plan(plan)
     

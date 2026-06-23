@@ -1,17 +1,16 @@
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel, QLineEdit, QComboBox, QFrame, QHBoxLayout, QTextEdit
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
-from core.license_manager import LicenseManager
-from core.hwid_manager import HWIDManager
-from tools.key_generator import KeyGenerator
-from config.constants import ACCENT_COLOR, SECONDARY_COLOR, SUCCESS_COLOR, ERROR_COLOR, LICENSE_DURATION_DAYS
+from core.advanced_key_system import SecureLicenseManager
+from core.optimizer import HWIDManager
+from config.constants import ACCENT_COLOR, SECONDARY_COLOR, SUCCESS_COLOR, ERROR_COLOR
 
 class LicenseManagerPage(QWidget):
     def __init__(self):
         super().__init__()
-        self.license_manager = LicenseManager()
+        self.license_manager = SecureLicenseManager()
         self.hwid_manager = HWIDManager()
-        self.key_generator = KeyGenerator()
+        self.current_hwid = None
         self.init_ui()
     
     def init_ui(self):
@@ -20,138 +19,129 @@ class LicenseManagerPage(QWidget):
         layout.setSpacing(20)
         
         # Title
-        title = QLabel("License Manager")
+        title = QLabel("🔐 License Manager")
         title.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
         layout.addWidget(title)
         
-        # Tabs
-        tab_layout = QHBoxLayout()
+        # Get HWID
+        self.current_hwid = self.hwid_manager.get_hwid()
+        hwid_label = QLabel(f"Your HWID: {self.current_hwid}")
+        hwid_label.setStyleSheet("color: #666666; font-size: 11px; word-wrap: true; background-color: #f5f5f5; padding: 10px; border-radius: 5px;")
+        layout.addWidget(hwid_label)
         
-        generate_btn = QPushButton("Generate Keys")
-        validate_btn = QPushButton("Validate License")
-        
-        for btn in [generate_btn, validate_btn]:
-            btn.setMinimumHeight(40)
-            btn.setStyleSheet(f"background-color: {SECONDARY_COLOR}; border: 1px solid #E0E0E0; border-radius: 5px;")
-            tab_layout.addWidget(btn)
-        
-        layout.addLayout(tab_layout)
-        
-        # Content area
-        self.content_frame = QFrame()
-        self.content_frame.setStyleSheet(f"background-color: {SECONDARY_COLOR}; border-radius: 10px; padding: 20px;")
-        self.content_layout = QVBoxLayout()
-        self.content_frame.setLayout(self.content_layout)
-        
-        layout.addWidget(self.content_frame)
-        
-        # Show generate by default
-        self.show_generate()
-        
-        generate_btn.clicked.connect(self.show_generate)
-        validate_btn.clicked.connect(self.show_validate)
-        
-        self.setLayout(layout)
-    
-    def clear_content(self):
-        while self.content_layout.count():
-            self.content_layout.takeAt(0).widget().deleteLater()
-    
-    def show_generate(self):
-        self.clear_content()
-        
-        label = QLabel("Generate License Keys")
-        label.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        self.content_layout.addWidget(label)
-        
-        # Count input
-        count_layout = QHBoxLayout()
-        count_layout.addWidget(QLabel("Number of keys:"))
-        count_input = QLineEdit()
-        count_input.setText("1")
-        count_input.setMaximumWidth(100)
-        count_layout.addWidget(count_input)
-        count_layout.addStretch()
-        self.content_layout.addLayout(count_layout)
-        
-        # Duration dropdown
-        duration_layout = QHBoxLayout()
-        duration_layout.addWidget(QLabel("Duration:"))
-        duration_combo = QComboBox()
-        for duration in LICENSE_DURATION_DAYS.keys():
-            duration_combo.addItem(duration)
-        duration_layout.addWidget(duration_combo)
-        duration_layout.addStretch()
-        self.content_layout.addLayout(duration_layout)
-        
-        # Generate button
-        gen_btn = QPushButton("Generate")
-        gen_btn.setMinimumHeight(40)
-        gen_btn.setStyleSheet(f"background-color: {ACCENT_COLOR}; color: white; border: none; border-radius: 5px; font-weight: 600;")
-        gen_btn.clicked.connect(lambda: self.generate_keys(
-            int(count_input.text() or 1),
-            duration_combo.currentText()
-        ))
-        self.content_layout.addWidget(gen_btn)
-        
-        # Output
-        self.output_text = QTextEdit()
-        self.output_text.setReadOnly(True)
-        self.output_text.setMaximumHeight(300)
-        self.content_layout.addWidget(self.output_text)
-        
-        self.content_layout.addStretch()
-    
-    def show_validate(self):
-        self.clear_content()
-        
-        label = QLabel("Validate License Key")
-        label.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        self.content_layout.addWidget(label)
-        
-        # Current HWID
-        hwid = self.hwid_manager.get_hwid()
-        hwid_label = QLabel(f"Your HWID: {hwid}")
-        hwid_label.setStyleSheet("color: #666666; font-size: 11px; word-wrap: true;")
-        self.content_layout.addWidget(hwid_label)
-        
-        # Key input
+        # Key input section
         key_label = QLabel("Enter License Key:")
-        key_input = QLineEdit()
-        key_input.setPlaceholderText("OWL-XXXXX-XXXXX-XXXXX-XXXXX")
-        self.content_layout.addWidget(key_label)
-        self.content_layout.addWidget(key_input)
+        key_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        layout.addWidget(key_label)
         
-        # Validate button
-        validate_btn = QPushButton("Validate")
-        validate_btn.setMinimumHeight(40)
-        validate_btn.setStyleSheet(f"background-color: {ACCENT_COLOR}; color: white; border: none; border-radius: 5px; font-weight: 600;")
-        validate_btn.clicked.connect(lambda: self.validate_key(key_input.text()))
-        self.content_layout.addWidget(validate_btn)
+        self.key_input = QLineEdit()
+        self.key_input.setPlaceholderText("OWL-XXXXXXXXXX-XXXXXXXX-XXXXXX")
+        self.key_input.setMinimumHeight(40)
+        layout.addWidget(self.key_input)
+        
+        # Activate button
+        activate_btn = QPushButton("🔓 Activate License")
+        activate_btn.setMinimumHeight(45)
+        activate_btn.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        activate_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {ACCENT_COLOR};
+                color: white;
+                border: none;
+                border-radius: 5px;
+            }}
+            QPushButton:hover {{
+                background-color: #1E5A1F;
+            }}
+        """)
+        activate_btn.clicked.connect(self.activate_license)
+        layout.addWidget(activate_btn)
         
         # Status
         self.status_label = QLabel("")
-        self.content_layout.addWidget(self.status_label)
+        self.status_label.setStyleSheet(f"color: {SUCCESS_COLOR}; font-weight: 600;")
+        self.status_label.setWordWrap(True)
+        layout.addWidget(self.status_label)
         
-        self.content_layout.addStretch()
+        # Info section
+        info_frame = QFrame()
+        info_frame.setStyleSheet(f"background-color: {SECONDARY_COLOR}; border-radius: 10px; padding: 15px;")
+        info_layout = QVBoxLayout()
+        
+        info_title = QLabel("📍 License Information")
+        info_title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        info_layout.addWidget(info_title)
+        
+        self.info_text = QTextEdit()
+        self.info_text.setReadOnly(True)
+        self.info_text.setMaximumHeight(200)
+        self.info_text.setText(
+            """🔐 OwlTeam Opti Advanced License System
+
+✓ Secure key validation with HWID binding
+✓ All data embedded in the key
+✓ Automatic expiration
+✓ Tampering detection
+✓ Works completely offline
+
+📋 How to get a license:
+1. Contact the developer
+2. Receive a license key
+3. Paste it above and click Activate
+4. Your PC is automatically bound to this license
+5. Enjoy premium features!
+
+⏰ Key expires based on purchase duration
+🔒 Each key is locked to your PC (HWID)""")
+        info_layout.addWidget(self.info_text)
+        
+        info_frame.setLayout(info_layout)
+        layout.addWidget(info_frame)
+        
+        layout.addStretch()
+        self.setLayout(layout)
     
-    def generate_keys(self, count, duration):
-        keys = self.key_generator.generate_batch(count, duration)
-        output = "Generated License Keys:\n\n"
-        for key_info in keys:
-            output += f"Key: {key_info['key']}\n"
-            output += f"Duration: {key_info['duration']}\n"
-            output += f"Created: {key_info['created_at']}\n\n"
+    def activate_license(self):
+        """Activate license key"""
+        key = self.key_input.text().strip().upper()
         
-        self.output_text.setText(output)
-    
-    def validate_key(self, key):
-        hwid = self.hwid_manager.get_hwid()
-        valid, message = self.license_manager.validate_license(key, hwid)
+        if not key:
+            self.show_error("Please enter a license key")
+            return
         
-        if valid:
-            self.status_label.setText(f"✓ {message}")
-            self.status_label.setStyleSheet(f"color: {SUCCESS_COLOR}; font-weight: 600;")
+        # Try to activate
+        result = self.license_manager.activate_key(key, self.current_hwid)
+        
+        if result["success"]:
+            self.show_success(result["message"])
+            self.key_input.clear()
+            # Show license info
+            info = self.license_manager.get_key_info(key)
+            if info["exists"]:
+                self.info_text.setText(
+                    f"""✅ License Activated!
+
+📌 License Details:
+   Key: {key[:15]}...
+   Activated: {info['activated']}
+   Expires: {info['expires']}
+   Duration: {info['duration_days']} days
+   Status: Active
+   HWID: {self.current_hwid}
+
+✓ Your license is now active!
+✓ Enjoy premium features!
+✓ Your PC is bound to this license (cannot be shared)"""
+                )
         else:
-            self.status_label.setText(f"✗ {message}")
-            self.status_label.setStyleSheet(f"color: {ERROR_COLOR}; font-weight: 600;")
+            self.show_error(result["message"])
+    
+    def show_success(self, message):
+        """Show success message"""
+        self.status_label.setText(f"✅ {message}")
+        self.status_label.setStyleSheet(f"color: {SUCCESS_COLOR}; font-weight: 600;")
+    
+    def show_error(self, message):
+        """Show error message"""
+        self.status_label.setText(f"❌ {message}")
+        self.status_label.setStyleSheet(f"color: {ERROR_COLOR}; font-weight: 600;")
