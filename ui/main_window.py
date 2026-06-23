@@ -1,17 +1,18 @@
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QStackedWidget, QFrame
+    QPushButton, QLabel, QStackedWidget, QFrame, QScrollArea
 )
-from PyQt6.QtCore import Qt, QSize, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QFont, QIcon, QPixmap, QColor
+from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtGui import QFont, QPixmap, QColor
 from ui.pages.dashboard import DashboardPage
 from ui.pages.games import GamesPage
 from ui.pages.cleanup import CleanupPage
 from ui.pages.tweaks import TweaksPage
 from ui.pages.license_manager import LicenseManagerPage
+from ui.pages.bios_assistant import BIOSAssistantPage
+from ui.pages.boost_mode import BoostModePage
 from ui.pages.settings import SettingsPage
 from config.constants import *
-import os
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -47,6 +48,7 @@ class MainWindow(QMainWindow):
         sidebar.setMaximumWidth(250)
         layout = QVBoxLayout()
         layout.setContentsMargins(15, 20, 15, 20)
+        layout.setSpacing(5)
         
         # Logo
         logo_label = QLabel("🦇 OWLTEAM")
@@ -57,20 +59,24 @@ class MainWindow(QMainWindow):
         
         # Navigation buttons
         self.pages_info = [
-            ("📊 Dashboard", "dashboard"),
-            ("🎮 Games", "games"),
-            ("🧹 Cleanup", "cleanup"),
-            ("⚙️ Tweaks", "tweaks"),
-            ("🔐 License", "license"),
-            ("⚡ BOOST Mode", "boost"),
-            ("⚙️ Settings", "settings")
+            ("📊 Dashboard", "dashboard", DashboardPage()),
+            ("🎮 Games", "games", GamesPage()),
+            ("⚡ BOOST Mode", "boost", BoostModePage()),
+            ("🤖 BIOS AI", "bios", BIOSAssistantPage()),
+            ("🧹 Cleanup", "cleanup", CleanupPage()),
+            ("⚙️ Tweaks", "tweaks", TweaksPage()),
+            ("🔐 License", "license", LicenseManagerPage()),
+            ("⚙️ Settings", "settings", SettingsPage())
         ]
         
         self.nav_buttons = {}
-        for label, page_id in self.pages_info:
+        self.pages = {}
+        
+        for label, page_id, page_widget in self.pages_info:
             btn = self.create_nav_button(label, page_id)
             layout.addWidget(btn)
             self.nav_buttons[page_id] = btn
+            self.pages[page_id] = page_widget
         
         layout.addStretch()
         
@@ -84,6 +90,7 @@ class MainWindow(QMainWindow):
     
     def create_nav_button(self, label, page_id):
         btn = QPushButton(label)
+        btn.setMinimumHeight(45)
         btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
@@ -91,10 +98,10 @@ class MainWindow(QMainWindow):
                 border: none;
                 padding: 12px;
                 text-align: left;
-                font-size: 12px;
+                font-size: 11px;
                 font-weight: 600;
                 border-radius: 5px;
-                margin: 5px 0;
+                margin: 3px 0;
             }}
             QPushButton:hover {{
                 background-color: #E8E8E8;
@@ -112,34 +119,19 @@ class MainWindow(QMainWindow):
         self.stacked_widget = QStackedWidget()
         
         # Add pages
-        self.dashboard_page = DashboardPage()
-        self.games_page = GamesPage()
-        self.cleanup_page = CleanupPage()
-        self.tweaks_page = TweaksPage()
-        self.license_page = LicenseManagerPage()
-        self.settings_page = SettingsPage()
-        
-        self.stacked_widget.addWidget(self.dashboard_page)
-        self.stacked_widget.addWidget(self.games_page)
-        self.stacked_widget.addWidget(self.cleanup_page)
-        self.stacked_widget.addWidget(self.tweaks_page)
-        self.stacked_widget.addWidget(self.license_page)
-        self.stacked_widget.addWidget(self.settings_page)
+        for page_id, page_widget in self.pages.items():
+            self.stacked_widget.addWidget(page_widget)
         
         return self.stacked_widget
     
     def switch_page(self, page_id):
-        page_map = {
-            "dashboard": 0,
-            "games": 1,
-            "cleanup": 2,
-            "tweaks": 3,
-            "license": 4,
-            "settings": 5
-        }
+        page_order = [
+            "dashboard", "games", "boost", "bios",
+            "cleanup", "tweaks", "license", "settings"
+        ]
         
-        if page_id in page_map:
-            self.stacked_widget.setCurrentIndex(page_map[page_id])
+        if page_id in page_order:
+            self.stacked_widget.setCurrentIndex(page_order.index(page_id))
             
             # Update button styles
             for btn_id, btn in self.nav_buttons.items():
@@ -189,5 +181,15 @@ class MainWindow(QMainWindow):
                 padding: 8px;
                 border-radius: 4px;
                 color: {DARK_TEXT};
+            }}
+            QProgressBar {{
+                background-color: {SECONDARY_COLOR};
+                border: none;
+                border-radius: 5px;
+                height: 20px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {ACCENT_COLOR};
+                border-radius: 5px;
             }}
         """

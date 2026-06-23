@@ -1,15 +1,21 @@
-import sys
-from PyQt6.QtWidgets import QApplication
 from ui.main_window import MainWindow
-from config.constants import APP_NAME, APP_VERSION
+from PyQt6.QtWidgets import QApplication
+import sys
+
+# Import all pages to register them
+from ui.pages.dashboard import DashboardPage
+from ui.pages.games import GamesPage
+from ui.pages.cleanup import CleanupPage
+from ui.pages.tweaks import TweaksPage
+from ui.pages.license_manager import LicenseManagerPage
+from ui.pages.bios_assistant import BIOSAssistantPage
+from ui.pages.boost_mode import BoostModePage
+from ui.pages.settings import SettingsPage
 
 def main():
     app = QApplication(sys.argv)
-    
-    # Create and show main window
     window = MainWindow()
     window.show()
-    
     sys.exit(app.exec())
 
 if __name__ == '__main__':
